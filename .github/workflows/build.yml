@@ -1,0 +1,96 @@
+name: Build & Package
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    name: Build (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.browser }}" = "firefox" ]; then
+            npm run build:firefox
+          else
+            npm run build
+          fi
+
+      - name: Zip
+        run: |
+          if [ "${{ matrix.browser }}" = "firefox" ]; then
+            npm run zip:firefox
+          else
+            npm run zip
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: draven-${{ matrix.browser }}-${{ github.sha }}
+          path: .output/
+          retention-days: 30
+
+  attach-release-assets:
+    name: Attach ZIPs to Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release'
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build & Zip
+        run: |
+          if [ "${{ matrix.browser }}" = "firefox" ]; then
+            npm run build:firefox && npm run zip:firefox
+          else
+            npm run build && npm run zip
+          fi
+
+      - name: Locate zip
+        id: find_zip
+        run: |
+          ZIP=$(find .output -name "*.zip" | head -n 1)
+          echo "zip_path=$ZIP" >> $GITHUB_OUTPUT
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.find_zip.outputs.zip_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
