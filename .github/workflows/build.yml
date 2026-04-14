@@ -8,87 +8,107 @@ on:
   release:
     types: [ published ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
-  build:
-    name: Build (${{ matrix.browser }})
+  build-chrome:
+    name: Build Chrome
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        browser: [chrome, firefox]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
+      - name: Debug - list files
+        run: ls -la
+
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-package-lock
 
       - name: Build
-        run: |
-          if [ "${{ matrix.browser }}" = "firefox" ]; then
-            npm run build:firefox
-          else
-            npm run build
-          fi
+        run: npm run build
 
       - name: Zip
-        run: |
-          if [ "${{ matrix.browser }}" = "firefox" ]; then
-            npm run zip:firefox
-          else
-            npm run zip
-          fi
+        run: npm run zip
 
-      - name: Upload build artifact
+      - name: Debug - list output
+        run: ls -la .output/ || echo "No .output directory found"
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: draven-${{ matrix.browser }}-${{ github.sha }}
+          name: draven-chrome-${{ github.sha }}
+          path: .output/
+          retention-days: 30
+
+  build-firefox:
+    name: Build Firefox
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Debug - list files
+        run: ls -la
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Build
+        run: npm run build:firefox
+
+      - name: Zip
+        run: npm run zip:firefox
+
+      - name: Debug - list output
+        run: ls -la .output/ || echo "No .output directory found"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: draven-firefox-${{ github.sha }}
           path: .output/
           retention-days: 30
 
   attach-release-assets:
     name: Attach ZIPs to Release
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build-chrome, build-firefox]
     if: github.event_name == 'release'
-    strategy:
-      matrix:
-        browser: [chrome, firefox]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-package-lock
 
-      - name: Build & Zip
-        run: |
-          if [ "${{ matrix.browser }}" = "firefox" ]; then
-            npm run build:firefox && npm run zip:firefox
-          else
-            npm run build && npm run zip
-          fi
+      - name: Build & Zip Chrome
+        run: npm run build && npm run zip
 
-      - name: Locate zip
-        id: find_zip
-        run: |
-          ZIP=$(find .output -name "*.zip" | head -n 1)
-          echo "zip_path=$ZIP" >> $GITHUB_OUTPUT
+      - name: Build & Zip Firefox
+        run: npm run build:firefox && npm run zip:firefox
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.find_zip.outputs.zip_path }}
+          files: .output/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
