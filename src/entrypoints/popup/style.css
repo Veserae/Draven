@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --bg-base:    #080810;
+  --bg-surface: #0f0f1a;
+  --bg-raised:  #16161f;
+  --border:     #252535;
+  --accent:     #e53935;
+  --accent-hi:  #ff5252;
+  --accent-dim: #7f1f1d;
+  --gold:       #ffd700;
+  --text-hi:    #f0f0f0;
+  --text-mid:   #a0a0b0;
+  --text-lo:    #505060;
+  --mono:       'Share Tech Mono', monospace;
+  --display:    'Cinzel', serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 320px;
+  background: var(--bg-base);
+  color: var(--text-hi);
+  font-family: var(--mono);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { width: 320px; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--accent-dim); }
